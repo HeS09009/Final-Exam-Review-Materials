@@ -1,49 +1,47 @@
 package it.servlet;
 
-import java.io.IOException;
-import java.net.URLDecoder;
-import java.net.URLEncoder;
 import javax.servlet.*;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.*;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
-@WebServlet("/display")
-public class DisplayServlet extends HttpServlet {
-
+@WebServlet("/comment")
+public class CommentServlet extends HttpServlet {
+    private List<String> sensitiveWords = new ArrayList<>();
     @Override
-    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        //【代码2】如果上一级页面不是display.jsp，则跳转到display.jsp页面
-        String referer = req.getHeader("referer");
-        if (referer==null|| !referer.startsWith("http://localhost:8080/web9/display.jsp")){
-            resp.sendRedirect(req.getContextPath()+"/display.jsp");
-            return;
-        }
+    public void init() throws ServletException {
+        sensitiveWords.add("山寨");
+        sensitiveWords.add("盗版");
+        sensitiveWords.add("水货");
+    }
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        //【代码一】获取评论内容（注意：post请求体中的数据的中文处理）
+        request.setCharacterEncoding("utf-8");
+        String comment = request.getParameter("comment");
 
-        //【代码3】声明并初始化变量goods
-        String goods="";
-        //读取cookie
-        Cookie[] cookies = req.getCookies();
-        if (cookies != null) {
-            for (Cookie c : cookies) {
-                if ("goods".equals(c.getName())) {
-                    goods = URLDecoder.decode(c.getValue(),"utf-8");
-                    break;
-                }
+        String originalComment = comment; //保存原评论
+
+        for (String sensitiveWord : sensitiveWords) {
+            //对所有敏感词汇进行过滤
+            if (comment.contains(sensitiveWord)){
+                //替换敏感词汇
+                comment = comment.replace(sensitiveWord, "**");
             }
         }
 
-        //【代码4】从请求对象中，获取被点击的商品名，赋值给name
-        String name = req.getParameter("name");
-
-        //判断goods中是否包含被点击的商品名。若不包含，则将商品名添加到goods中。
-        if (!goods.contains(name)) {
-            goods =  name +" "+goods;
+       if (/*【代码二】*/originalComment.equals(comment)){
+            //没有敏感词，设置tag为good guy
+            request.setAttribute("tag","good guy：");
+        }else {
+            //有敏感词，设置tag为bad guy
+            request.setAttribute("tag","bad guy：");
         }
-        //【代码5】将goods进行URL编码后，存入客户端浏览器的Cookie中
-        goods = URLEncoder.encode(goods,"utf-8");//对goods进行编码处理
-        Cookie c = new Cookie("goods", goods);
-        resp.addCookie(c);
-        resp.sendRedirect(req.getContextPath() + "/display.jsp");
-    }
-
+       //【代码三】将comment保存到request中
+        request.setAttribute("comment",comment);
+        //【代码四】跳转到comment.jsp页面（请求转发？还是重定向？）
+       request.getRequestDispatcher("/comment.jsp").forward(request,response);
+     }
 }
